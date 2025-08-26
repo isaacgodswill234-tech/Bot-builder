@@ -1,14 +1,12 @@
 services:
   - type: worker
-    name: botbuilder-bot
+    name: bot-factory-main
     env: python
-    plan: free
     buildCommand: "pip install -r requirements.txt"
     startCommand: "python main.py"
-
+    
   - type: web
-    name: botbuilder-admin
+    name: bot-factory-admin
     env: python
-    plan: free
     buildCommand: "pip install -r requirements.txt"
     startCommand: "python admin.py"
