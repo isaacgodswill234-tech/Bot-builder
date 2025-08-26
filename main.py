@@ -76,8 +76,12 @@ async def get_theme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return MUST_JOIN_STATE
 
 async def get_must_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['must_join'] = [c.strip() for c in update.message.text.split(",")]
-    await update.message.reply_text("Enter your payment channel (e.g., @myPayments):")
+    # Force these two channels as must-join
+    context.user_data['must_join'] = ["https://t.me/boteratrack", "https://t.me/boterapro"]
+    await update.message.reply_text(
+        "✅ Your mini-bot participants must join the required channels automatically."
+        "\nEnter your payment channel (e.g., @myPayments):"
+    )
     return PAYMENT_CHANNEL_STATE
 
 async def get_payment_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
