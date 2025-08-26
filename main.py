@@ -72,8 +72,7 @@ async def get_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def get_theme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['theme'] = update.message.text.strip()
-    await update.message.reply_text("Enter must-join channels (comma-separated, e.g., @channel1,@channel2):")
-    return MUST_JOIN_STATE
+    return await get_must_join(update, context)  # Skip user input and go straight to must-join
 
 async def get_must_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Force these two channels as must-join
@@ -152,7 +151,6 @@ async def get_max_participants(update: Update, context: ContextTypes.DEFAULT_TYP
 # -------------------------------
 def run_minibot(owner_id, bot_data):
     token = bot_data['token']
-    must_join = bot_data['must_join_channels']
     max_participants = bot_data['max_participants']
     bot_instance = Bot(token)
     print(f"Mini-bot started for user {owner_id} with token {token}")
@@ -162,21 +160,14 @@ def run_minibot(owner_id, bot_data):
 
     while True:
         try:
-            # Simulate new participant joining
             if bot_info["participants"] < max_participants:
                 bot_info["participants"] += 1
-
-                # Example: referral rewards
                 if bot_info["referral_enabled"]:
-                    # Give owner ₦1 per participant
                     users[owner_id]["balance"] += 1
-                    # Optionally, handle referral chain for 0.5 ₦ per referral (simulation)
-                    # You can expand this with real referral tracking later
-
             save_users(users)
         except Exception as e:
             print(f"Error in mini-bot thread: {e}")
-        time.sleep(10)  # check every 10 seconds
+        time.sleep(10)
 
 # -------------------------------
 # Referral command
