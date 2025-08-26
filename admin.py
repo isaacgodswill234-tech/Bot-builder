@@ -2,10 +2,10 @@ from flask import Flask, render_template_string, request, Response
 import json, os
 
 DATA_FILE = "users.json"
-app = Flask(__name__)
+ADMIN_USER = "admin"      # change this to your username
+ADMIN_PASS = "password"   # change this to a strong password
 
-USERNAME = os.getenv("ADMIN_USER", "admin")   # default admin username
-PASSWORD = os.getenv("ADMIN_PASS", "secret")  # default admin password
+app = Flask(__name__)
 
 def load_users():
     if not os.path.exists(DATA_FILE):
@@ -14,7 +14,7 @@ def load_users():
         return json.load(f)
 
 def check_auth(username, password):
-    return username == USERNAME and password == PASSWORD
+    return username == ADMIN_USER and password == ADMIN_PASS
 
 def authenticate():
     return Response(
@@ -29,7 +29,7 @@ def require_login():
         return authenticate()
 
 @app.route("/")
-def home():
+def admin_home():
     users = load_users()
     return render_template_string("""
         <h1>Bot Builder Admin</h1>
