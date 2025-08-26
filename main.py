@@ -7,10 +7,9 @@ from telegram import Update, Bot
 from telegram.ext import Application, CommandHandler, ContextTypes, ConversationHandler, MessageHandler, filters
 
 # -------------------------------
-# Main Bot Token (your bot)
+# Main Bot Token
 # -------------------------------
 MAIN_TOKEN = "8263358249:AAFhhObsLAepIqNJGrPG_-DYN6TwsscB5Lo"
-
 DATA_FILE = "users.json"
 
 # -------------------------------
@@ -36,7 +35,7 @@ def save_users(users):
         json.dump(users, f, indent=2)
 
 # -------------------------------
-# Conversation states
+# Conversation States
 # -------------------------------
 (
     TOKEN_STATE,
@@ -56,8 +55,7 @@ def save_users(users):
 # -------------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 Welcome to the Bot Factory!\n"
-        "Use /create to start creating your mini-bot."
+        "👋 Welcome to the Bot Factory!\nUse /create to start creating your mini-bot."
     )
 
 # -------------------------------
@@ -119,7 +117,7 @@ async def get_max_participants(update: Update, context: ContextTypes.DEFAULT_TYP
         max_participants = 500
     context.user_data['max_participants'] = max_participants
 
-    # Save to users.json
+    # Save mini-bot data
     user_id = str(update.effective_user.id)
     users = load_users()
     users.setdefault(user_id, {"bots": [], "referrals": [], "balance": 0})
@@ -140,37 +138,41 @@ async def get_max_participants(update: Update, context: ContextTypes.DEFAULT_TYP
     save_users(users)
 
     # Launch mini-bot thread
-    threading.Thread(target=run_minibot, args=(bot_data,), daemon=True).start()
+    threading.Thread(target=run_minibot, args=(user_id, bot_data), daemon=True).start()
 
     await update.message.reply_text("✅ Your mini-bot has been created and launched automatically!")
     return ConversationHandler.END
 
 # -------------------------------
-# Mini-bot runner
+# Mini-bot runner with participant & referral tracking
 # -------------------------------
-def run_minibot(bot_data):
-    """
-    Runs a user mini-bot using their token, sends messages to must-join channels, 
-    and tracks participants up to the max limit.
-    """
+def run_minibot(owner_id, bot_data):
     token = bot_data['token']
     must_join = bot_data['must_join_channels']
     max_participants = bot_data['max_participants']
     bot_instance = Bot(token)
-    print(f"Mini-bot started with token: {token}")
+    print(f"Mini-bot started for user {owner_id} with token {token}")
+
+    users = load_users()
+    bot_info = users[owner_id]["bots"][-1]
 
     while True:
         try:
-            # Example: send startup message to must-join channels
-            for channel in must_join:
-                try:
-                    bot_instance.send_message(chat_id=channel, text=bot_data['startup_message'])
-                except:
-                    pass
-            # Here you could implement participant tracking and referral counting
+            # Simulate new participant joining
+            if bot_info["participants"] < max_participants:
+                bot_info["participants"] += 1
+
+                # Example: referral rewards
+                if bot_info["referral_enabled"]:
+                    # Give owner ₦1 per participant
+                    users[owner_id]["balance"] += 1
+                    # Optionally, handle referral chain for 0.5 ₦ per referral (simulation)
+                    # You can expand this with real referral tracking later
+
+            save_users(users)
         except Exception as e:
-            print(f"Mini-bot error: {e}")
-        time.sleep(30)  # interval between actions
+            print(f"Error in mini-bot thread: {e}")
+        time.sleep(10)  # check every 10 seconds
 
 # -------------------------------
 # Referral command
@@ -180,6 +182,15 @@ async def referral(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"Share this link: https://t.me/{context.bot.username}?start={user_id}")
 
 # -------------------------------
+# Balance check command
+# -------------------------------
+async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    users = load_users()
+    bal = users.get(user_id, {}).get("balance", 0)
+    await update.message.reply_text(f"💰 Your current balance: ₦{bal}")
+
+# -------------------------------
 # Telegram Bot Setup
 # -------------------------------
 def main():
@@ -187,16 +198,16 @@ def main():
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("create", create)],
         states={
-            TOKEN_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_token)],
-            THEME_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_theme)],
-            MUST_JOIN_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_must_join)],
-            PAYMENT_CHANNEL_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_payment_channel)],
-            PAYMENT_METHOD_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_payment_method)],
-            REFERRAL_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_referral)],
-            STARTUP_MSG_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_startup_message)],
-            ADS_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_ads)],
-            DESCRIPTION_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_description)],
-            MAX_PARTICIPANTS_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_max_participants)],
+            0: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_token)],
+            1: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_theme)],
+            2: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_must_join)],
+            3: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_payment_channel)],
+            4: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_payment_method)],
+            5: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_referral)],
+            6: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_startup_message)],
+            7: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_ads)],
+            8: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_description)],
+            9: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_max_participants)],
         },
         fallbacks=[]
     )
@@ -204,8 +215,9 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(conv_handler)
     application.add_handler(CommandHandler("referral", referral))
+    application.add_handler(CommandHandler("balance", balance))
 
-    print("Bot Factory is running... 🚀")
+    print("Bot Factory running... 🚀")
     application.run_polling()
 
 if __name__ == "__main__":
