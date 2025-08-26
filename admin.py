@@ -1,50 +1,34 @@
-from flask import Flask, render_template_string, request, Response
-import json, os
-
-DATA_FILE = "users.json"
-ADMIN_USER = "admin"
-ADMIN_PASS = "password"
+from flask import Flask, render_template_string, jsonify
+import json
 
 app = Flask(__name__)
+DATA_FILE = "users.json"
 
 def load_users():
-    if not os.path.exists(DATA_FILE):
+    try:
+        with open(DATA_FILE, "r") as f:
+            return json.load(f)
+    except:
         return {}
-    with open(DATA_FILE, "r") as f:
-        return json.load(f)
-
-def check_auth(username, password):
-    return username == ADMIN_USER and password == ADMIN_PASS
-
-def authenticate():
-    return Response(
-        'Login required.', 401,
-        {'WWW-Authenticate': 'Basic realm="Login Required"'}
-    )
-
-@app.before_request
-def require_login():
-    auth = request.authorization
-    if not auth or not check_auth(auth.username, auth.password):
-        return authenticate()
 
 @app.route("/")
-def admin_home():
+def index():
     users = load_users()
-    return render_template_string("""
-        <h1>Bot Builder Admin</h1>
-        <table border="1" cellpadding="5">
-            <tr><th>User ID</th><th>#Bots</th><th>Participants</th><th>Balance (₦)</th></tr>
-            {% for uid, data in users.items() %}
-            <tr>
-                <td>{{ uid }}</td>
-                <td>{{ data['bots']|length }}</td>
-                <td>{{ data['bots']|sum(attribute='participants') }}</td>
-                <td>{{ data['balance'] }}</td>
-            </tr>
-            {% endfor %}
-        </table>
-    """, users=users)
+    html = "<h1>Bot Factory Admin Panel</h1>"
+    for uid, data in users.items():
+        html += f"<h2>User ID: {uid}</h2>"
+        for bot in data.get("bots", []):
+            html += f"<p>Bot Token: {bot['token']}</p>"
+            html += f"<p>Theme: {bot['theme']}</p>"
+            html += f"<p>Must Join Channels: {', '.join(bot['must_join_channels'])}</p>"
+            html += f"<p>Participants: {bot['participants']}/{bot['max_participants']}</p>"
+            html += f"<p>Balance: ₦{data.get('balance',0)}</p>"
+            html += "<hr>"
+    return html
+
+@app.route("/api/users")
+def api_users():
+    return jsonify(load_users())
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
