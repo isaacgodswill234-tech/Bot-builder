@@ -1,14 +1,32 @@
-from flask import Flask, render_template_string
+from flask import Flask, render_template_string, request, Response
 import json, os
 
 DATA_FILE = "users.json"
 app = Flask(__name__)
+
+USERNAME = os.getenv("ADMIN_USER", "admin")   # default admin username
+PASSWORD = os.getenv("ADMIN_PASS", "secret")  # default admin password
 
 def load_users():
     if not os.path.exists(DATA_FILE):
         return {}
     with open(DATA_FILE, "r") as f:
         return json.load(f)
+
+def check_auth(username, password):
+    return username == USERNAME and password == PASSWORD
+
+def authenticate():
+    return Response(
+        'Login required.', 401,
+        {'WWW-Authenticate': 'Basic realm="Login Required"'}
+    )
+
+@app.before_request
+def require_login():
+    auth = request.authorization
+    if not auth or not check_auth(auth.username, auth.password):
+        return authenticate()
 
 @app.route("/")
 def home():
