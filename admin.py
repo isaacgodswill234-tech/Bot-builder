@@ -2,8 +2,8 @@ from flask import Flask, render_template_string, request, Response
 import json, os
 
 DATA_FILE = "users.json"
-ADMIN_USER = "admin"      # change this to your username
-ADMIN_PASS = "password"   # change this to a strong password
+ADMIN_USER = "admin"
+ADMIN_PASS = "password"
 
 app = Flask(__name__)
 
@@ -34,12 +34,13 @@ def admin_home():
     return render_template_string("""
         <h1>Bot Builder Admin</h1>
         <table border="1" cellpadding="5">
-            <tr><th>User ID</th><th>Bot Token</th><th>Status</th></tr>
+            <tr><th>User ID</th><th>#Bots</th><th>Participants</th><th>Balance (₦)</th></tr>
             {% for uid, data in users.items() %}
             <tr>
                 <td>{{ uid }}</td>
-                <td>{{ data['token'] }}</td>
-                <td>{{ "Premium" if data['premium'] else "Free" }}</td>
+                <td>{{ data['bots']|length }}</td>
+                <td>{{ data['bots']|sum(attribute='participants') }}</td>
+                <td>{{ data['balance'] }}</td>
             </tr>
             {% endfor %}
         </table>
