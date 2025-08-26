@@ -5,3 +5,10 @@ services:
     plan: free
     buildCommand: "pip install -r requirements.txt"
     startCommand: "python main.py"
+
+  - type: web
+    name: botbuilder-admin
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python admin.py"
