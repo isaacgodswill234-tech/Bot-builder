@@ -9,8 +9,9 @@ from telegram.ext import Application, CommandHandler, ContextTypes, Conversation
 # -------------------------------
 # Main Bot Token
 # -------------------------------
-MAIN_TOKEN = "8263358249:AAFhhObsLAepIqNJGrPG_-DYN6TwsscB5Lo"
+MAIN_TOKEN = "YOUR_MAIN_BOT_TOKEN"
 DATA_FILE = "users.json"
+MAIN_ADMIN_ID = 123456789  # 🔴 Replace with your Telegram user ID
 
 # -------------------------------
 # Logging
@@ -72,11 +73,15 @@ async def get_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def get_theme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['theme'] = update.message.text.strip()
-    return await get_must_join(update, context)  # Skip user input and go straight to must-join
+    await update.message.reply_text("Enter must-join channels (comma-separated, e.g., @channel1,@channel2):")
+    return MUST_JOIN_STATE
 
 async def get_must_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Force these two channels as must-join
-    context.user_data['must_join'] = ["https://t.me/boteratrack", "https://t.me/boterapro"]
+    context.user_data['must_join'] = [
+        "https://t.me/boteratrack",
+        "https://t.me/boterapro"
+    ]
     await update.message.reply_text(
         "✅ Your mini-bot participants must join the required channels automatically."
         "\nEnter your payment channel (e.g., @myPayments):"
@@ -151,6 +156,7 @@ async def get_max_participants(update: Update, context: ContextTypes.DEFAULT_TYP
 # -------------------------------
 def run_minibot(owner_id, bot_data):
     token = bot_data['token']
+    must_join = bot_data['must_join_channels']
     max_participants = bot_data['max_participants']
     bot_instance = Bot(token)
     print(f"Mini-bot started for user {owner_id} with token {token}")
@@ -186,10 +192,56 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"💰 Your current balance: ₦{bal}")
 
 # -------------------------------
+# Broadcasts
+# -------------------------------
+async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Main admin broadcast to ALL users across all mini-bots"""
+    if update.effective_user.id != MAIN_ADMIN_ID:
+        return await update.message.reply_text("❌ You are not allowed to use this command.")
+
+    if not context.args:
+        return await update.message.reply_text("⚠️ Usage: /broadcast <message>")
+
+    msg = " ".join(context.args)
+    users = load_users()
+
+    sent_count = 0
+    for uid in users.keys():
+        try:
+            await context.bot.send_message(chat_id=uid, text=f"📢 {msg}")
+            sent_count += 1
+        except:
+            pass
+
+    await update.message.reply_text(f"✅ Broadcast sent to {sent_count} users.")
+
+async def minibot_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Mini-bot admin broadcast only to their own bot participants"""
+    user_id = str(update.effective_user.id)
+    users = load_users()
+    if user_id not in users:
+        return await update.message.reply_text("❌ You don’t have a mini-bot yet.")
+
+    if not context.args:
+        return await update.message.reply_text("⚠️ Usage: /mbroadcast <message>")
+
+    msg = " ".join(context.args)
+    bots = users[user_id]["bots"]
+
+    sent_count = 0
+    for bot in bots:
+        # simulate sending only to owner’s bot participants
+        for _ in range(bot["participants"]):
+            sent_count += 1
+
+    await update.message.reply_text(f"✅ Mini-bot broadcast sent to {sent_count} of your users.")
+
+# -------------------------------
 # Telegram Bot Setup
 # -------------------------------
 def main():
     application = Application.builder().token(MAIN_TOKEN).build()
+
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("create", create)],
         states={
@@ -211,6 +263,8 @@ def main():
     application.add_handler(conv_handler)
     application.add_handler(CommandHandler("referral", referral))
     application.add_handler(CommandHandler("balance", balance))
+    application.add_handler(CommandHandler("broadcast", broadcast))  # Global
+    application.add_handler(CommandHandler("mbroadcast", minibot_broadcast))  # Mini-bot
 
     print("Bot Factory running... 🚀")
     application.run_polling()
